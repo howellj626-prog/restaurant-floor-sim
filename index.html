@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floor — a restaurant, simulated</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FAF6EF;
+  --card:#FFFDF9;
+  --sunk:#F2EBDF;
+  --line:#E3D9C9;
+  --ink:#2F2925;
+  --soft:#7A6F63;
+  --gold:#C08A2E;
+  --rust:#B4593A;
+  --leaf:#6E8C5F;
+  --sky:#6A8299;
+  --sand:#B9AB95;
+  --display:'Fraunces',Georgia,serif;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:var(--sans);font-size:15px;line-height:1.65;
+  padding:34px 22px 60px;
+}
+.wrap{max-width:1080px;margin:0 auto}
+
+header{margin-bottom:26px}
+h1{font-family:var(--display);font-weight:600;font-size:46px;line-height:1.05;
+  letter-spacing:-.02em;margin:0 0 10px}
+h1 em{font-style:italic;font-weight:400;color:var(--gold)}
+.lede{font-size:16.5px;color:var(--soft);max-width:52ch;margin:0}
+
+.grid{display:grid;grid-template-columns:1fr 268px;gap:20px;align-items:start}
+@media(max-width:880px){.grid{grid-template-columns:1fr}}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+.card + .card{margin-top:16px}
+.card h2{font-family:var(--display);font-size:19px;font-weight:600;letter-spacing:-.01em;
+  margin:0 0 4px}
+.card p.hint{font-size:13.5px;color:var(--soft);margin:0 0 14px}
+
+canvas{display:block;width:100%;background:var(--sunk);border-radius:7px}
+#floor{aspect-ratio:16/9}
+#chart{height:86px;margin-top:12px}
+
+.ctl{margin-bottom:16px}
+.ctl .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.ctl .name{font-size:14px;font-weight:500}
+.ctl .val{font-family:var(--display);font-size:17px;font-weight:600;color:var(--gold)}
+.ctl .why{font-size:12.5px;color:var(--soft);line-height:1.45;margin:5px 0 0}
+input[type=range]{width:100%;accent-color:var(--gold);background:transparent;margin:0;cursor:pointer}
+
+.pill{background:var(--sunk);border-radius:8px;padding:11px 14px;margin-bottom:18px}
+.pill .name{font-size:13px;color:var(--soft)}
+.pill .val{font-family:var(--display);font-size:24px;font-weight:600;line-height:1.2}
+
+.btns{display:flex;gap:9px;margin-top:6px}
+button{
+  flex:1;font-family:var(--sans);font-size:13.5px;font-weight:500;
+  background:var(--card);color:var(--ink);border:1px solid var(--line);
+  border-radius:7px;padding:10px 8px;cursor:pointer;transition:.15s;
+}
+button:hover{border-color:var(--gold);color:var(--gold)}
+button.go{background:var(--gold);color:#fff;border-color:var(--gold)}
+button.go:hover{background:#A9761F;border-color:#A9761F;color:#fff}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+@media(max-width:620px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.stat .k{font-size:12.5px;color:var(--soft)}
+.stat .v{font-family:var(--display);font-size:27px;font-weight:600;line-height:1.15;margin-top:2px}
+.stat .v small{font-family:var(--sans);font-size:13px;font-weight:400;color:var(--soft)}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:14px;font-size:13px;color:var(--soft)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:3px;flex:none}
+
+#feed{font-size:13.5px;line-height:1.75;height:236px;overflow:hidden;color:var(--soft)}
+#feed div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  padding:1px 0;border-bottom:1px solid rgba(227,217,201,.5)}
+#feed .time{color:var(--sand);font-variant-numeric:tabular-nums}
+#feed .slow{color:var(--rust)}
+#feed .good{color:var(--leaf)}
+
+table.sweep{width:100%;border-collapse:collapse;font-size:14px;margin-top:14px}
+table.sweep th{text-align:left;font-weight:500;font-size:12.5px;color:var(--soft);
+  padding:0 10px 8px 0;border-bottom:1px solid var(--line)}
+table.sweep td{padding:9px 10px 9px 0;border-bottom:1px solid rgba(227,217,201,.6);
+  font-variant-numeric:tabular-nums}
+table.sweep tr.here td{background:#FBF3E2;font-weight:600}
+table.sweep td.big{color:var(--rust);font-weight:600}
+.empty{font-size:13.5px;color:var(--soft);margin-top:12px}
+
+footer{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);
+  font-size:13.5px;color:var(--soft);max-width:64ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Restaurant Simulation</h1>
+</header>
+
+<div class="grid">
+  <div>
+    <div class="card">
+      <h2>The dining room</h2>
+      <p class="hint">Every square is a table. Colours show what that table is
+      waiting on right now.</p>
+      <canvas id="floor" width="1280" height="720"></canvas>
+      <div class="legend">
+        <span><i style="background:#E7DECF"></i>open</span>
+        <span><i style="background:#6A8299"></i>ordering</span>
+        <span><i style="background:#C08A2E"></i>food's being made</span>
+        <span><i style="background:#6E8C5F"></i>eating</span>
+        <span><i style="background:#B4593A"></i>waiting on a server</span>
+        <span><i style="background:#B9AB95"></i>being cleared</span>
+      </div>
+      <canvas id="chart" width="1280" height="172"></canvas>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="k">Time</div><div class="v" id="s-clock">5:00<small> pm</small></div></div>
+      <div class="stat"><div class="k">Waiting at the door</div><div class="v" id="s-wait">0</div></div>
+      <div class="stat"><div class="k">Average visit</div><div class="v" id="s-visit">—<small> min</small></div></div>
+      <div class="stat"><div class="k">Tables served</div><div class="v" id="s-turns">0</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Try every staffing level at once</h2>
+      <p class="hint">Runs the whole night 30 times over at each number of
+      servers, then shows the average wait guests would feel. Your current
+      setting is highlighted.</p>
+      <button id="sweep" class="go" style="max-width:220px">Compare staffing levels</button>
+      <div id="sweep-out"><p class="empty">Takes a second or two to run.</p></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="pill">
+        <div class="name">Tables per server</div>
+        <div class="val" id="v-ratio">4.0</div>
+      </div>
+
+      <div class="ctl">
+        <div class="row"><span class="name">Servers working</span><span class="val" id="v-srv">5</span></div>
+        <input type="range" id="srv" min="2" max="8" value="5">
+        <p class="why">The thing you're really testing.</p>
+      </div>
+
+      <div class="ctl">
+        <div class="row"><span class="name">Tables in the room</span><span class="val" id="v-tbl">20</span></div>
+        <input type="range" id="tbl" min="8" max="28" value="20">
+      </div>
+
+      <div class="ctl">
+        <div class="row"><span class="name">Cooks on the line</span><span class="val" id="v-cook">4</span></div>
+        <input type="range" id="cook" min="1" max="8" value="4">
+        <p class="why">Turn this down to see the kitchen become the hold-up instead.</p>
+      </div>
+
+      <div class="ctl">
+        <div class="row"><span class="name">How busy it is</span><span class="val" id="v-rate">15</span></div>
+        <input type="range" id="rate" min="3" max="36" value="15">
+        <p class="why">Groups arriving each hour. 9 is a quiet Tuesday, 15 is
+        steady, 25 and up is a Saturday.</p>
+      </div>
+
+      <div class="ctl">
+        <div class="row"><span class="name">Playback speed</span><span class="val" id="v-spd">60×</span></div>
+        <input type="range" id="spd" min="1" max="8" value="4">
+      </div>
+
+      <div class="btns">
+        <button id="play" class="go">Pause</button>
+        <button id="restart">Start over</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>What's happening</h2>
+      <div id="feed"></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   Floor — a simulation of one dinner service.
+
+   A group arrives, waits for a table, gets seated, orders, waits on the
+   kitchen, eats, pays, and leaves. Each step needs something that can run
+   out: a table, a server, a cook, a busser. When it has run out, the group
+   waits. That waiting is the whole subject.
+------------------------------------------------------------------- */
+
+/* --- random numbers we can reproduce ---------------------------- */
+function makeRandom(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Gaps between arrivals: mostly short, occasionally long.
+function randomGap(random, average){
+  return -average * Math.log(1 - random());
+}
+
+// How long a task takes: usually near the average, sometimes much longer,
+// never negative — which is how real service times behave.
+function randomDuration(random, average, spread){
+  const mu = Math.log(average) - spread * spread / 2;
+  const u1 = Math.max(random(), 1e-12), u2 = random();
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return Math.exp(mu + spread * z);
+}
+
+/* --- upcoming events, soonest first ----------------------------- */
+class Schedule{
+  constructor(){ this.items = []; this.order = 0; }
+  add(time, name, data){
+    this.items.push({ time, order: this.order++, name, data });
+    this.bubbleUp(this.items.length - 1);
+  }
+  next(){
+    const first = this.items[0], last = this.items.pop();
+    if(this.items.length){ this.items[0] = last; this.bubbleDown(0); }
+    return first;
+  }
+  get count(){ return this.items.length; }
+  get soonest(){ return this.items[0]; }
+  earlier(i, j){
+    const a = this.items[i], b = this.items[j];
+    return a.time < b.time || (a.time === b.time && a.order < b.order);
+  }
+  swap(i, j){ [this.items[i], this.items[j]] = [this.items[j], this.items[i]]; }
+  bubbleUp(i){
+    while(i > 0){
+      const parent = (i - 1) >> 1;
+      if(!this.earlier(i, parent)) break;
+      this.swap(i, parent); i = parent;
+    }
+  }
+  bubbleDown(i){
+    for(;;){
+      const left = 2 * i + 1, right = 2 * i + 2;
+      let best = i;
+      if(left  < this.items.length && this.earlier(left,  best)) best = left;
+      if(right < this.items.length && this.earlier(right, best)) best = right;
+      if(best === i) break;
+      this.swap(i, best); i = best;
+    }
+  }
+}
+
+/* --- how long each step takes, in minutes ----------------------- */
+const STEPS = {
+  seat:  { average:  2, spread: 0.50 },   // greeting and walking them over
+  order: { average:  6, spread: 0.60 },   // sitting down to order placed
+  cook:  { average: 18, spread: 0.40 },   // ticket in to plates up
+  eat:   { average: 45, spread: 0.35 },   // the meal itself
+  pay:   { average:  7, spread: 0.50 },   // asking for the check to settled
+  clear: { average:  3, spread: 0.50 }    // clearing and resetting
+};
+
+const DOORS_OPEN = 17 * 60;   // 5:00 pm
+const SERVICE_LENGTH = 360;   // six hours
+
+/* --- one dinner service ----------------------------------------- */
+function openRestaurant(setup, options){
+  options = options || {};
+  const random = makeRandom(setup.seed);
+  const schedule = new Schedule();
+  let now = 0, nextGroupNumber = 1;
+
+  const tables = [];
+  for(let i = 0; i < setup.tables; i++)
+    tables.push({ number: i + 1, status: 'open', group: null, server: i % setup.servers });
+
+  const servers = [];
+  for(let i = 0; i < setup.servers; i++)
+    servers.push({ number: i + 1, busy: false, waiting: [] });
+
+  const kitchen = { slots: setup.cooks, inUse: 0, waiting: [] };
+  const bussers = { slots: 2, inUse: 0, waiting: [] };
+
+  const atTheDoor = [];   // groups with nowhere to sit yet
+  const finished  = [];   // groups who've paid and left
+  const feed      = [];   // plain-language log of what happened
+  const doorLine  = [];   // [minute, how many waiting] for the chart
+
+  function say(tone, text){
+    if(!options.keepFeed) return;
+    feed.push({ at: now, tone: tone, text: text });
+    if(feed.length > 60) feed.shift();
+  }
+
+  function later(minutes, name, data){ schedule.add(now + minutes, name, data); }
+
+  // Shared things like the kitchen and bussers: anyone can use a free slot.
+  function claim(resource, whenReady){
+    if(resource.inUse < resource.slots){ resource.inUse++; whenReady(0); }
+    else resource.waiting.push({ since: now, whenReady: whenReady });
+  }
+  function letGo(resource){
+    resource.inUse--;
+    if(resource.waiting.length){
+      const next = resource.waiting.shift();
+      resource.inUse++;
+      next.whenReady(now - next.since);
+    }
+  }
+
+  // Servers are different: a table can only be helped by its own server,
+  // even if someone else is standing around free.
+  function callServer(index, whenReady){
+    const server = servers[index];
+    if(!server.busy){ server.busy = true; whenReady(0); }
+    else server.waiting.push({ since: now, whenReady: whenReady });
+  }
+  function serverFree(index){
+    const server = servers[index];
+    server.busy = false;
+    if(server.waiting.length){
+      const next = server.waiting.shift();
+      server.busy = true;
+      next.whenReady(now - next.since);
+    }
+  }
+
+  // The host seats new groups into whichever section is least loaded.
+  function seatWhoeverFits(){
+    while(atTheDoor.length){
+      const open = tables.filter(function(t){ return t.status === 'open'; });
+      if(!open.length) break;
+
+      const load = {};
+      tables.forEach(function(t){
+        if(t.status !== 'open') load[t.server] = (load[t.server] || 0) + 1;
+      });
+      open.sort(function(a, b){ return (load[a.server] || 0) - (load[b.server] || 0); });
+
+      const table = open[0];
+      const group = atTheDoor.shift();
+      group.waitedForTable = now - group.arrived;
+      table.status = 'seating';
+      table.group = group;
+
+      say('good', 'Table ' + table.number + ' — party of ' + group.size +
+        (group.waitedForTable > 1 ? ', waited ' + Math.round(group.waitedForTable) + ' min' : ''));
+      later(randomDuration(random, STEPS.seat.average, STEPS.seat.spread), 'sat down', { table: table });
+    }
+  }
+
+  const whatHappensNext = {
+    'group arrives': function(){
+      const r = random();
+      const size = r < .08 ? 1 : r < .55 ? 2 : r < .70 ? 3 : r < .92 ? 4 : r < .97 ? 5 : 6;
+      atTheDoor.push({ number: nextGroupNumber++, size: size, arrived: now, waits: {} });
+      seatWhoeverFits();
+      later(randomGap(random, 60 / setup.groupsPerHour), 'group arrives');
+    },
+
+    'sat down': function(d){
+      const table = d.table;
+      table.status = 'waiting on server';
+      callServer(table.server, function(waited){
+        table.group.waits.order = waited;
+        table.status = 'ordering';
+        if(waited > 3) say('slow', 'Table ' + table.number + ' waited ' +
+          Math.round(waited) + ' min to order — server ' + (table.server + 1) + ' was buried');
+        later(randomDuration(random, STEPS.order.average, STEPS.order.spread), 'ordered', { table: table });
+      });
+    },
+
+    'ordered': function(d){
+      const table = d.table;
+      serverFree(table.server);
+      table.status = 'kitchen';
+      claim(kitchen, function(waited){
+        table.group.waits.kitchen = waited;
+        later(randomDuration(random, STEPS.cook.average, STEPS.cook.spread), 'food up', { table: table });
+      });
+    },
+
+    'food up': function(d){
+      const table = d.table;
+      letGo(kitchen);
+      table.status = 'eating';
+      say('', 'Table ' + table.number + ' — entrées away');
+      later(randomDuration(random, STEPS.eat.average, STEPS.eat.spread), 'done eating', { table: table });
+    },
+
+    'done eating': function(d){
+      const table = d.table;
+      table.status = 'waiting on server';
+      callServer(table.server, function(waited){
+        table.group.waits.pay = waited;
+        table.status = 'paying';
+        if(waited > 3) say('slow', 'Table ' + table.number + ' sat ' +
+          Math.round(waited) + ' min before getting their check');
+        later(randomDuration(random, STEPS.pay.average, STEPS.pay.spread), 'paid', { table: table });
+      });
+    },
+
+    'paid': function(d){
+      const table = d.table;
+      serverFree(table.server);
+      const group = table.group;
+      group.visitLength = now - group.arrived;
+      finished.push(group);
+      say('good', 'Table ' + table.number + ' closed — ' + Math.round(group.visitLength) + ' min visit');
+      table.status = 'clearing';
+      table.group = null;
+      claim(bussers, function(){
+        later(randomDuration(random, STEPS.clear.average, STEPS.clear.spread), 'table reset', { table: table });
+      });
+    },
+
+    'table reset': function(d){
+      const table = d.table;
+      letGo(bussers);
+      table.status = 'open';
+      seatWhoeverFits();
+    }
+  };
+
+  schedule.add(0, 'group arrives');
+  let nextChartPoint = 0;
+
+  function recordDoorLine(){
+    while(nextChartPoint <= now){
+      doorLine.push([nextChartPoint, atTheDoor.length]);
+      nextChartPoint += 2;
+    }
+    if(doorLine.length > 400) doorLine.splice(0, doorLine.length - 400);
+  }
+
+  return {
+    tables: tables, servers: servers, atTheDoor: atTheDoor,
+    finished: finished, feed: feed, doorLine: doorLine,
+    get now(){ return now; },
+    runUntil: function(minute){
+      while(schedule.count && schedule.soonest.time <= minute){
+        const event = schedule.next();
+        now = event.time;
+        whatHappensNext[event.name](event.data || {});
+        recordDoorLine();
+      }
+      now = minute;
+      recordDoorLine();
+    }
+  };
+}
+
+/* --- run a night with no visuals, just the numbers -------------- */
+function quietNight(setup){
+  const service = openRestaurant(setup);
+  service.runUntil(SERVICE_LENGTH);
+  // Skip the first half hour — the room starts empty, which isn't typical.
+  const groups = service.finished.filter(function(g){ return g.arrived >= 30; });
+  if(!groups.length) return null;
+  const average = function(list){
+    return list.reduce(function(a, b){ return a + b; }, 0) / list.length;
+  };
+  return {
+    served:    groups.length,
+    orderWait: average(groups.map(function(g){ return g.waits.order || 0; })),
+    payWait:   average(groups.map(function(g){ return g.waits.pay   || 0; })),
+    doorWait:  average(groups.map(function(g){ return g.waitedForTable || 0; })),
+    visit:     average(groups.map(function(g){ return g.visitLength; }))
+  };
+}
+
+/* ================= drawing ====================================== */
+const SHADES = {
+  'open':'#E7DECF', 'seating':'#6A8299', 'ordering':'#6A8299',
+  'waiting on server':'#B4593A', 'kitchen':'#C08A2E',
+  'eating':'#6E8C5F', 'paying':'#6A8299', 'clearing':'#B9AB95'
+};
+
+const floorCanvas = document.getElementById('floor');
+const floorCtx = floorCanvas.getContext('2d');
+const chartCanvas = document.getElementById('chart');
+const chartCtx = chartCanvas.getContext('2d');
+
+function drawRoom(service){
+  const W = floorCanvas.width, H = floorCanvas.height;
+  floorCtx.clearRect(0, 0, W, H);
+  floorCtx.fillStyle = '#F2EBDF';
+  floorCtx.fillRect(0, 0, W, H);
+
+  const count = service.tables.length;
+  const columns = Math.ceil(Math.sqrt(count * 1.7));
+  const rows = Math.ceil(count / columns);
+  const padX = 116, padY = 64;
+  const cellW = (W - padX * 2) / columns, cellH = (H - padY * 2) / rows;
+  const size = Math.min(cellW, cellH) * 0.6;
+
+  service.tables.forEach(function(table, i){
+    const col = i % columns, row = Math.floor(i / columns);
+    const x = padX + col * cellW + (cellW - size) / 2;
+    const y = padY + row * cellH + (cellH - size) / 2;
+
+    floorCtx.fillStyle = SHADES[table.status] || '#E7DECF';
+    floorCtx.beginPath();
+    floorCtx.roundRect(x, y, size, size, 7);
+    floorCtx.fill();
+
+    floorCtx.fillStyle = table.status === 'open' ? '#B9AB95' : 'rgba(255,253,249,.94)';
+    floorCtx.font = '600 ' + Math.max(11, size * 0.27) + 'px Inter, sans-serif';
+    floorCtx.textAlign = 'center';
+    floorCtx.textBaseline = 'middle';
+    floorCtx.fillText(String(table.number), x + size / 2, y + size / 2);
+  });
+
+  // people waiting at the door
+  floorCtx.fillStyle = '#7A6F63';
+  floorCtx.font = '600 19px Inter, sans-serif';
+  floorCtx.textAlign = 'left';
+  floorCtx.textBaseline = 'top';
+  floorCtx.fillText('At the door', 26, 24);
+  floorCtx.fillStyle = '#B4593A';
+  const showing = Math.min(service.atTheDoor.length, 13);
+  for(let i = 0; i < showing; i++){
+    floorCtx.beginPath();
+    floorCtx.arc(38, 70 + i * 24, 8, 0, 7);
+    floorCtx.fill();
+  }
+  if(service.atTheDoor.length > showing){
+    floorCtx.font = '500 15px Inter, sans-serif';
+    floorCtx.fillText('+' + (service.atTheDoor.length - showing), 56, 70 + showing * 24 - 9);
+  }
+
+  // each server, and how many tables are stacked up on them
+  floorCtx.textAlign = 'right';
+  floorCtx.fillStyle = '#7A6F63';
+  floorCtx.font = '600 19px Inter, sans-serif';
+  floorCtx.fillText('Servers', W - 26, 24);
+  service.servers.forEach(function(server, i){
+    const y = 70 + i * 28;
+    floorCtx.fillStyle = '#7A6F63';
+    floorCtx.font = '500 15px Inter, sans-serif';
+    floorCtx.fillText(String(server.number), W - 94, y - 6);
+    const stacked = server.waiting.length;
+    floorCtx.fillStyle = stacked > 1 ? '#B4593A' : stacked === 1 ? '#C08A2E' : '#E7DECF';
+    for(let k = 0; k < Math.max(1, Math.min(stacked, 5)); k++)
+      floorCtx.fillRect(W - 86 + k * 13, y - 4, 10, 12);
+  });
+}
+
+function drawDoorChart(service){
+  const W = chartCanvas.width, H = chartCanvas.height;
+  chartCtx.clearRect(0, 0, W, H);
+  chartCtx.fillStyle = '#F2EBDF';
+  chartCtx.fillRect(0, 0, W, H);
+
+  const points = service.doorLine;
+  if(points.length < 2) return;
+  let peak = 6;
+  points.forEach(function(p){ if(p[1] > peak) peak = p[1]; });
+
+  chartCtx.beginPath();
+  points.forEach(function(p, i){
+    const x = (i / (points.length - 1)) * W;
+    const y = H - 8 - (p[1] / peak) * (H - 26);
+    i ? chartCtx.lineTo(x, y) : chartCtx.moveTo(x, y);
+  });
+  chartCtx.strokeStyle = '#B4593A';
+  chartCtx.lineWidth = 2.5;
+  chartCtx.stroke();
+  chartCtx.lineTo(W, H); chartCtx.lineTo(0, H); chartCtx.closePath();
+  chartCtx.fillStyle = 'rgba(180,89,58,.13)';
+  chartCtx.fill();
+
+  chartCtx.fillStyle = '#7A6F63';
+  chartCtx.font = '500 15px Inter, sans-serif';
+  chartCtx.textAlign = 'left';
+  chartCtx.textBaseline = 'top';
+  chartCtx.fillText('People waiting through the night — busiest was ' + peak, 12, 10);
+}
+
+function clockFace(minutes){
+  const total = DOORS_OPEN + minutes;
+  let hour = Math.floor(total / 60) % 24;
+  const minute = Math.floor(total % 60);
+  const half = hour >= 12 ? 'pm' : 'am';
+  hour = hour % 12 || 12;
+  return hour + ':' + String(minute).padStart(2, '0') + '<small> ' + half + '</small>';
+}
+
+function drawNumbers(service){
+  document.getElementById('s-clock').innerHTML = clockFace(service.now);
+  document.getElementById('s-wait').textContent = service.atTheDoor.length;
+  document.getElementById('s-turns').textContent = service.finished.length;
+  const settled = service.finished.filter(function(g){ return g.arrived >= 30; });
+  document.getElementById('s-visit').innerHTML = settled.length
+    ? Math.round(settled.reduce(function(a, g){ return a + g.visitLength; }, 0) / settled.length) + '<small> min</small>'
+    : '—<small> min</small>';
+}
+
+function drawFeed(service){
+  const box = document.getElementById('feed');
+  box.innerHTML = service.feed.slice(-12).reverse().map(function(line){
+    const total = DOORS_OPEN + line.at;
+    let hour = Math.floor(total / 60) % 24;
+    const minute = Math.floor(total % 60);
+    const half = hour >= 12 ? 'pm' : 'am';
+    hour = hour % 12 || 12;
+    const stamp = hour + ':' + String(minute).padStart(2, '0') + half;
+    return '<div><span class="time">' + stamp + '</span> ' +
+           '<span class="' + line.tone + '">' + line.text + '</span></div>';
+  }).join('');
+}
+
+/* ================= running the page ============================= */
+const SPEEDS = [10, 20, 40, 60, 120, 240, 480, 960];
+let service, playing = true, lastFrameTime = 0;
+
+function currentSetup(seed){
+  return {
+    servers: +document.getElementById('srv').value,
+    tables:  +document.getElementById('tbl').value,
+    cooks:   +document.getElementById('cook').value,
+    groupsPerHour: +document.getElementById('rate').value,
+    seed: seed === undefined ? Math.floor(Math.random() * 1e9) : seed
+  };
+}
+
+function redraw(){
+  drawRoom(service); drawDoorChart(service);
+  drawNumbers(service); drawFeed(service);
+}
+
+function startOver(){
+  service = openRestaurant(currentSetup(), { keepFeed: true });
+  lastFrameTime = 0;
+  redraw();
+}
+
+function tick(timestamp){
+  if(!lastFrameTime) lastFrameTime = timestamp;
+  const realSeconds = (timestamp - lastFrameTime) / 1000;
+  lastFrameTime = timestamp;
+  if(playing && service.now < SERVICE_LENGTH){
+    const speed = SPEEDS[+document.getElementById('spd').value - 1];
+    service.runUntil(Math.min(SERVICE_LENGTH, service.now + realSeconds * speed / 60));
+    redraw();
+  }
+  requestAnimationFrame(tick);
+}
+
+function showRatio(){
+  const tables = +document.getElementById('tbl').value;
+  const servers = +document.getElementById('srv').value;
+  document.getElementById('v-ratio').textContent = (tables / servers).toFixed(1);
+}
+
+[['srv','v-srv'], ['tbl','v-tbl'], ['cook','v-cook'], ['rate','v-rate']].forEach(function(pair){
+  const slider = document.getElementById(pair[0]);
+  slider.addEventListener('input', function(){
+    document.getElementById(pair[1]).textContent = slider.value;
+    showRatio();
+    startOver();
+  });
+});
+
+document.getElementById('spd').addEventListener('input', function(e){
+  document.getElementById('v-spd').textContent = SPEEDS[+e.target.value - 1] + '×';
+});
+
+document.getElementById('play').addEventListener('click', function(e){
+  playing = !playing;
+  lastFrameTime = 0;
+  e.target.textContent = playing ? 'Pause' : 'Play';
+});
+
+document.getElementById('restart').addEventListener('click', startOver);
+
+document.getElementById('sweep').addEventListener('click', function(){
+  const out = document.getElementById('sweep-out');
+  out.innerHTML = '<p class="empty">Running 30 nights at each level…</p>';
+  setTimeout(function(){
+    const base = currentSetup(1);
+    let rows = '';
+    for(let servers = 2; servers <= 8; servers++){
+      const total = { order: 0, pay: 0, door: 0, visit: 0, nights: 0 };
+      for(let night = 0; night < 30; night++){
+        const setup = {
+          servers: servers, tables: base.tables, cooks: base.cooks,
+          groupsPerHour: base.groupsPerHour, seed: 1000 + night * 7919
+        };
+        const result = quietNight(setup);
+        if(!result) continue;
+        total.order += result.orderWait;
+        total.pay   += result.payWait;
+        total.door  += result.doorWait;
+        total.visit += result.visit;
+        total.nights++;
+      }
+      if(!total.nights) continue;
+      const avg = function(value){ return value / total.nights; };
+      const cell = function(value){
+        return '<td' + (avg(value) > 8 ? ' class="big"' : '') + '>' +
+               avg(value).toFixed(1) + ' min</td>';
+      };
+      rows += '<tr' + (servers === base.servers ? ' class="here"' : '') + '>' +
+              '<td>' + servers + '</td>' +
+              '<td>' + (base.tables / servers).toFixed(1) + '</td>' +
+              cell(total.order) + cell(total.pay) + cell(total.door) +
+              '<td>' + avg(total.visit).toFixed(0) + ' min</td></tr>';
+    }
+    out.innerHTML =
+      '<table class="sweep"><thead><tr>' +
+      '<th>Servers</th><th>Tables each</th><th>Wait to order</th>' +
+      '<th>Wait for check</th><th>Wait for a table</th><th>Whole visit</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>' +
+      '<p class="empty">' + base.tables + ' tables · ' + base.groupsPerHour +
+      ' groups an hour · ' + base.cooks + ' cooks</p>';
+  }, 30);
+});
+
+showRatio();
+startOver();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
